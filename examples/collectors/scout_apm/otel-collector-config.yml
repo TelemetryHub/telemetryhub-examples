@@ -1,0 +1,69 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+  filelog:
+    include: [ /var/log/development.log, /var/log/scout_apm.log ]
+    operators:
+      - type: router
+        id: get-format
+        routes:
+          - output: my-json-parser
+            expr: 'body matches "^\\{"'
+          - output: my-regex-parser
+            expr: 'body matches "^.*[ ]"'
+      - type: regex_parser
+        id: my-regex-parser
+        regex: '^(?P<time>) (?P<sev>[A-Z]*) (?P<msg>.*)$'
+        timestamp:
+          parse_from: attributes.time
+          layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+        severity:
+          parse_from: attributes.sev
+      - type: json_parser
+        id: my-json-parser
+        timestamp:
+          parse_from: attributes.time
+          layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+  hostmetrics:
+    collection_interval: 1m
+    root_path: /hostfs
+    scrapers:
+      cpu:
+      load:
+      memory:
+      disk:
+      filesystem:
+      network:
+      paging:
+      processes:
+
+processors:
+  batch:
+
+exporters:
+  logging:
+  otlp:
+    endpoint: otlp.telemetryhub.com:4317
+    headers:
+      "X-TELEMETRYHUB-KEY": "xyz"
+
+extensions:
+  health_check:
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp, logging]
+    metrics:
+      receivers: [hostmetrics]
+      processors: [batch]
+      exporters: [otlp, logging]
+    logs:
+      receivers: [filelog]
+      processors: [batch]
+      exporters: [otlp, logging]
