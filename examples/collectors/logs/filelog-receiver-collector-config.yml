@@ -1,0 +1,20 @@
+receivers:
+  filelog:
+    include: [ /var/log/*.log ]
+
+processors:
+  batch:
+
+exporters:
+  logging:
+  otlp:
+    endpoint: otlp.telemetryhub.com:4317
+    headers:
+      "X-TELEMETRYHUB-KEY": “your-telemetryhub-key”
+
+service:
+  pipelines:
+    logs:
+      receivers: [filelog]
+      processors: [batch]
+      exporters: [logging, otlp]
